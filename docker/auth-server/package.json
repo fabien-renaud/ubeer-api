@@ -1,0 +1,17 @@
+{
+  "name": "auth-server",
+  "version": "1.0.0",
+  "description": "Dummy auth server",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.3",
+    "jsonwebtoken": "^8.5.1"
+  }
+}

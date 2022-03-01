@@ -1,0 +1,76 @@
+version: '3.9'
+
+networks:
+  ubeer-network: {}
+
+services:
+  ubeer-database:
+    container_name: ubeer-database
+    image: postgres:14.2-alpine
+    networks:
+      - ubeer-network
+    ports:
+      - '15432:5432'
+    volumes:
+    - ./docker/database/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRES_PASSWORD: postgres
+
+  ubeer-rest-api:
+    container_name: ubeer-rest-api
+    image: postgrest/postgrest:v9.0.0
+    depends_on:
+      - ubeer-database
+    networks:
+      - ubeer-network
+    ports:
+      - '11000:11000'
+    volumes:
+      - ./docker/hasura/postgrest.conf:/etc/postgrest.conf
+    environment:
+      PGRST_DB_URI: postgres://authenticator:postgres@ubeer-database:5432/postgres
+      PGRST_DB_SCHEMA: ubeer_api
+      PGRST_DB_ANON_ROLE: anonymous
+      PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost:11000
+      PGRST_SERVER_PORT: 11000
+      PGRST_JWT_SECRET: abcdefghijklmnopqrstuvwxyz0123456789
+
+  ubeer-graphql-api:
+    container_name: ubeer-graphql-api
+    image: hasura/graphql-engine:v2.2.1
+    depends_on:
+      - ubeer-database
+    networks:
+      - ubeer-network
+    ports:
+      - '12000:12000'
+    environment:
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgres@ubeer-database:5432/postgres
+      PG_DATABASE_URL: postgres://postgres:postgres@ubeer-database:5432/postgres
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+
+  ubeer-auth-server:
+    container_name: ubeer-auth-server
+    image: node:16
+    working_dir: /app
+    command: bash -c "npm ci && npm start"
+    volumes:
+      - ./docker/auth-server:/app
+    networks:
+      - ubeer-network
+    ports:
+      - '13000:13000'
+
+  ubeer-swagger-ui:
+    container_name: ubeer-swagger-ui
+    image: swaggerapi/swagger-ui:v4.5.2
+    depends_on:
+      - ubeer-rest-api
+    networks:
+      - ubeer-network
+    ports:
+      - '14000:8080'
+    environment:
+      SWAGGER_JSON_URL: http://localhost:11000
